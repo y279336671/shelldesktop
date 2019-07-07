@@ -1,6 +1,6 @@
-appId: com.shelldesktop.app
-copyright: yanghe
-productName: 贝壳桌面
+appId: com.example.app
+copyright: Example co
+productName: MyApp
 
 asar: true
 
