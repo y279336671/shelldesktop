@@ -1,63 +1,103 @@
 import React, { Component } from 'react';
 import { Input } from 'antd';
 import { getFileContent, mkdirs, downloadPic } from '../tools/tools';
-
+let exec = require('child_process').exec;
 let fs = require('fs');
 let request = require('request');
 let Bagpipe = require('bagpipe');
 let bagpipe = new Bagpipe(1000);
-
+let baiduURL = 'https://pan.baidu.com'
+let baiduCookies = ''
 export default class Home extends Component {
   static propTypes = {};
 
-  downloadData() {
-    let fileUploadControl = document.getElementById('fileUpload');
-    let filePath = fileUploadControl.files[0].path;
-    let content = getFileContent(filePath);
-    let jsons = JSON.parse(content);
-
-    for (let i = 0; i < jsons.length; i++) {
-      let json = jsons[i];
-      let dateNow = new Date();
-      let baseUrl = './data/' + dateNow.format('yyyyMMddhhmmssS' + i);
-
-      //创建文件夹
-      if (!fs.existsSync(baseUrl)) {
-        mkdirs(baseUrl, function(error) {
-          if (error) {
-            console.log('创建文件夹失败:' + JSON.stringify(error));
-          } else {
-            //创建文本
-            let content = json.taskText;
-            fs.writeFile(baseUrl + '/content.txt', content, 'utf8', function(error) {
-              if (error) {
-                console.log('文本写入失败' + JSON.stringify(error));
-              }
-            });
-
-            let images = json.screenshot.split(',');
-
-            for (let k = 0; k < images.length; k++) {
-              bagpipe.push(downloadPic, images[k], baseUrl + '/' + k + '.png', function(err, data) {
-                  if(err){
-                    console.log('图片下载失败')
-                  }
-              });
-            }
-          }
-        });
-      }
-    }
-
+  componentDidMount() {//BaiduPCS-Go -help
+    this.getCookies()
   }
 
+  //获取baiducookies
+  getCookies(){
+    this.webview = document.querySelector('#webview')
+    this.webview.addEventListener('load-commit', () => {
+      if (this.webview.src.indexOf(baiduURL) === 0) {
+        this.webview.executeJavaScript('window.scrollTo(10000, 0)')
+      }
+      const session = this.webview.getWebContents().session
+      session.cookies.get({url: baiduURL}, async (error, cookies) => {
+        for (let i = 0; i < cookies.length; i++) {
+          let cookie = cookies[i]
+          if (cookie.name === 'BDUSS' && this.webview.src.indexOf(baiduURL) > -1) {
+            baiduCookies = cookie.value
+            console.log('baidu cookied >>>>>>>>>'+baiduCookies)
+            this.login(baiduCookies)
+          }
+        }
+      })
+    })
+  }
+
+  login(baiduCookies){
+    //通过命令行登录
+    exec(__dirname+'/BaiduPCS-Go  login -bduss='+baiduCookies, function (error, stdout, stderr) {
+      if (error) {
+        console.log(error.stack);
+        console.log('Error code: ' + error.code);
+      }
+      console.log('Child Process STDOUT: ' + stdout);
+    });
+  }
 
   render() {
     return (
-      <div>
-        <Input style={{ width: 300 }} type="file" id="fileUpload" onChange={this.downloadData}/>
+      <div >
+        <webview style={{width:1000,height:800}}  id={'webview'} src={baiduURL}/>
+        {/*<Input style={{ width: 300 }} type="file" id="fileUpload" onChange={this.downloadData}/>  这句暂时不要删除*/}
       </div>
     );
   }
+
+  // downloadData() {
+  //   let fileUploadControl = document.getElementById('fileUpload');
+  //   let filePath = fileUploadControl.files[0].path;
+  //   let content = getFileContent(filePath);
+  //   let jsons = JSON.parse(content);
+  //
+  //   for (let i = 0; i < jsons.length; i++) {
+  //     let json = jsons[i];
+  //     let dateNow = new Date();
+  //     let baseUrl = './data/' + dateNow.format('yyyyMMddhhmmssS' + i);
+  //
+  //     //创建文件夹
+  //     if (!fs.existsSync(baseUrl)) {
+  //       mkdirs(baseUrl, function(error) {
+  //         if (error) {
+  //           console.log('创建文件夹失败:' + JSON.stringify(error));
+  //         } else {
+  //           //创建文本
+  //           let content = json.taskText;
+  //           fs.writeFile(baseUrl + '/content.txt', content, 'utf8', function(error) {
+  //             if (error) {
+  //               console.log('文本写入失败' + JSON.stringify(error));
+  //             }
+  //           });
+  //
+  //           let images = json.screenshot.split(',');
+  //
+  //           for (let k = 0; k < images.length; k++) {
+  //             bagpipe.push(downloadPic, images[k], baseUrl + '/' + k + '.png', function(err, data) {
+  //                 if(err){
+  //                   console.log('图片下载失败')
+  //                 }
+  //             });
+  //           }
+  //         }
+  //       });
+  //     }
+  //   }
+  //
+  // }
+
+
+
 
 }
